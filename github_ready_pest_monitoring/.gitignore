@@ -1,0 +1,27 @@
+# Python
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+env/
+
+# Local secrets and config
+.env
+.env.*
+!.env.example
+.streamlit/secrets.toml
+
+# Training data and generated model outputs
+/dataset/
+/runs/
+*.pt
+*.onnx
+*.engine
+*.tflite
+*.torchscript
+
+# Generated files and evidence containing local data
+*.log
+.DS_Store
+Thumbs.db
