@@ -52,6 +52,7 @@ class RiskAssessment:
     image_status: Literal["no_image", "zero_detections", "detections_present"]
     strongest_faw_confidence: float | None
     limitation: str = LIMITATION
+    visual_rule_met: bool | None = None  # Older assessments may omit the rule outcome.
 
 
 def _matching_hours(records: Sequence[TelemetryRecord], rules: RiskRules) -> int:
@@ -138,4 +139,5 @@ def assess_risk(
         matching_hours=matches,
         image_status=image_status,
         strongest_faw_confidence=best,
+        visual_rule_met=visual_match,
     )

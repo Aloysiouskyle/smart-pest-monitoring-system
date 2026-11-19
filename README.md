@@ -13,10 +13,10 @@ A final-year Computer Science project exploring offline-capable, multi-agent pes
 
 - WP 2.1 synthetic microclimate telemetry (implemented below).
 - WP 2.2 standalone rule-based assessment of telemetry and visual detections.
-- English/Luganda farmer SMS templates.
+- WP 3.1 English and draft Luganda farmer SMS previews.
 - Integration tests, user acceptance testing, and project management evidence.
 
-Dashboard integration of these modules, bilingual advice, and field validation are planned work.
+Dashboard integration of these modules and field validation are planned work.
 
 ## WP 2.1 microclimate simulator
 
@@ -74,7 +74,26 @@ Pass `None` for an unsubmitted image (`no_image`) or `{}` for a processed image 
 
 The agent requires 72 consecutive timezone-aware, whole-hour observations in order. All four measurements must lie within the combined WP 2.1 simulation bounds shown above. Incomplete telemetry, unknown labels, empty per-class score lists, and invalid scores raise `ValueError`. YOLO confidence describes a box in the current photo. The thresholds and categories are illustrative and have no validated relationship to infestation probability or outbreaks in the next 48–72 hours.
 
-Run both work packages' automated tests with `python -m unittest discover -s tests -v`.
+## WP 3.1 bilingual farmer advisory
+
+```python
+from advisory_agent import build_advisory
+from forecasting_agent import assess_risk
+from microclimate_sim import generate_telemetry
+
+forecast = assess_risk(generate_telemetry("higher_risk", seed=42), detections=None)
+preview = build_advisory(forecast)
+print(preview.english)
+print(preview.luganda)
+```
+
+Each preview names the simulated level, describes the photo evidence, and suggests a field check. A missing photo, an empty photo result, other maize detections, and a weak Fall Armyworm score each receive different wording. The agent uses the visual rule outcome from the forecast, including custom cutoffs. It describes qualifying photo evidence as possible signs. The original assessment and its limitations are available as `preview.assessment`. The dashboard still uses its original photo advisory.
+
+**Luganda drafts require human review before farmer deployment** (`preview.luganda_requires_review`). Ask a fluent Luganda-speaking agricultural adviser to review the pest terminology and field instructions. The module generates previews in memory.
+
+Each rendered message is checked against a 160-character limit and a restricted alphabet in which each character costs one GSM-7 septet. A future translation with extension characters such as brackets uses two septets per such character. Smart quotes or other Unicode characters can switch the entire message to Unicode encoding, typically allowing 70 UTF-16 code units in a single segment. The preview rejects unsupported characters so an editor can review them. [SMS encoding and segment limits](https://www.twilio.com/docs/glossary/what-sms-character-limit)
+
+Run all automated tests with `python -m unittest discover -s tests -v`.
 
 ## Source files
 
