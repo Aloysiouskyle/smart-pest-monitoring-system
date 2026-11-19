@@ -97,11 +97,12 @@ Run all automated tests with `python -m unittest discover -s tests -v`.
 
 ## WP 3.2 integrated dashboard
 
-Launch `python -m streamlit run app.py` from the repository root with the project environment. Choose **Normal maize field** or **Higher-risk scenario** and set the integer seed (default 42). Reusing both settings reproduces the 72 synthetic hourly readings. The dashboard shows the mean temperature, relative humidity, soil moisture and total rainfall for that window.
+Launch `python -m streamlit run app.py` from the repository root with the project environment.
 
-Optionally upload a maize photo and choose an available backend, confidence threshold and Grad-CAM setting. A successful photo check shows bounding boxes, timing and the original photo advisory. Grad-CAM uses the matching PyTorch checkpoint, including when ONNX supplies the boxes. Prediction and explanation models are loaded on demand and held separately in each session.
+- **Farmer View** opens by default. It shows the simulated risk and one recommended-action message near the top. Select English or draft Luganda for the advisory. The Luganda translation awaits human review. A photo is optional, and missing weights or failed inference leave the simulated assessment and guidance available. Photo results use plain-language labels for possible findings. Expand **Marked photo and explanation heatmap** to see the boxes and request the heatmap. Expand **Simulated weather readings** to see the summary for the Normal maize field scenario with seed 42. The photo check uses the first available backend (PyTorch, then ONNX) and the original 0.10 detection confidence threshold.
+- **Developer/Research View** provides backend, confidence threshold, Grad-CAM, scenario and seed controls. It shows the technical risk rules and evidence, all 72 simulated readings, per-box classes, confidence scores and coordinates, inference timings, the original photo advisory and both SMS previews with character counts. Grad-CAM uses the matching PyTorch checkpoint, including when ONNX supplies the boxes.
 
-Read the simulated risk alongside its two evidence statements. An omitted photo, a submitted photo that could not be processed, and a successful check with zero boxes each receive distinct wording. Missing weights or failed inference leave the climate assessment available. English and draft Luganda SMS previews show their character counts. These are simulated assessments and in-memory previews. Luganda requires human review before deployment.
+The readings are simulated and the risk estimate is an unvalidated demonstration. Detection and explanation models are still stored separately per session. The app now reuses the latest successful prediction in that session while the photo contents, checkpoint and detection threshold match. Changing these inputs runs detection again, and failed predictions can be retried on the next interaction. Farmer View skips Grad-CAM until requested. Displayed inference timings describe the prediction that produced the boxes, including when the result is reused. No latency benchmark was run.
 
 ## Source files
 
