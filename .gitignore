@@ -1,27 +1,29 @@
-# Python
-__pycache__/
-*.py[cod]
-.pytest_cache/
-.venv/
+
+# Python virtual environments
+venv_gpu/
 venv/
-env/
+.venv/
 
-# Local secrets and config
-.env
-.env.*
-!.env.example
-.streamlit/secrets.toml
+# Python cache files
+__pycache__/
+*.pyc
 
-# Training data and generated model outputs
-/dataset/
-/runs/
+# YOLO training datasets and results
+dataset/
+runs/
+
+# Trained AI model weights
 *.pt
 *.onnx
-*.engine
-*.tflite
-*.torchscript
 
-# Generated files and evidence containing local data
+# Generated simulation data
+data/generated/
+
+# Private configuration
+.env
+.env.*
+.streamlit/secrets.toml
+
+# VS Code and temporary files
+.vscode/
 *.log
-.DS_Store
-Thumbs.db
