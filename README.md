@@ -14,9 +14,9 @@ A final-year Computer Science project exploring offline-capable, multi-agent pes
 - WP 2.1 synthetic microclimate telemetry (implemented below).
 - WP 2.2 standalone rule-based assessment of telemetry and visual detections.
 - WP 3.1 English and draft Luganda farmer SMS previews.
-- Integration tests, user acceptance testing, and project management evidence.
+- WP 3.2 dashboard integration and automated Streamlit smoke tests.
 
-Dashboard integration of these modules and field validation are planned work.
+Farmer acceptance testing and field validation are planned work.
 
 ## WP 2.1 microclimate simulator
 
@@ -95,6 +95,14 @@ Each rendered message is checked against a 160-character limit and a restricted 
 
 Run all automated tests with `python -m unittest discover -s tests -v`.
 
+## WP 3.2 integrated dashboard
+
+Launch `python -m streamlit run app.py` from the repository root with the project environment. Choose **Normal maize field** or **Higher-risk scenario** and set the integer seed (default 42). Reusing both settings reproduces the 72 synthetic hourly readings. The dashboard shows the mean temperature, relative humidity, soil moisture and total rainfall for that window.
+
+Optionally upload a maize photo and choose an available backend, confidence threshold and Grad-CAM setting. A successful photo check shows bounding boxes, timing and the original photo advisory. Grad-CAM uses the matching PyTorch checkpoint, including when ONNX supplies the boxes. Prediction and explanation models are loaded on demand and held separately in each session.
+
+Read the simulated risk alongside its two evidence statements. An omitted photo, a submitted photo that could not be processed, and a successful check with zero boxes each receive distinct wording. Missing weights or failed inference leave the climate assessment available. English and draft Luganda SMS previews show their character counts. These are simulated assessments and in-memory previews. Luganda requires human review before deployment.
+
 ## Source files
 
 | File | Purpose |
@@ -117,7 +125,7 @@ python -m pip install -r requirements.txt
 streamlit run app.py
 ```
 
-The dashboard requires trained weights at one of the locations referenced in `app.py`, such as `runs/detect/pest_detection_model-6/weights/best.pt`. These files are excluded from version control. The dataset specified in `data.yaml` must also be obtained separately before training. Additional dependencies, including PyTorch, may be resolved by the Ultralytics package; GPU configurations require a suitable PyTorch/CUDA installation.
+Photo detection requires trained weights at one of the locations referenced in `app.py`, such as `runs/detect/pest_detection_model-6/weights/best.pt`. These files are excluded from version control. The dataset specified in `data.yaml` must also be obtained separately before training. Additional dependencies, including PyTorch, may be resolved by the Ultralytics package; GPU configurations require a suitable PyTorch/CUDA installation.
 
 ## Notes
 

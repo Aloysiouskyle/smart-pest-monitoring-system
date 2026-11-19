@@ -27,6 +27,7 @@ _ACTIONS = {
 _EVIDENCE = {
     "en": {
         "no_image": "Weather only. No photo submitted.",
+        "unprocessed_image": "Weather only. Photo check unavailable.",
         "zero_detections": "Weather only. Photo check flagged nothing.",
         "other_classes": "Weather only. Photo flagged other maize features.",
         "weak_sign": "Photo hint too weak to count. Risk uses weather only.",
@@ -34,6 +35,7 @@ _EVIDENCE = {
     },
     "lg": {
         "no_image": "Embeera y'obudde yokka. Tewali kifaananyi.",
+        "unprocessed_image": "Embeera y'obudde yokka. Ekifaananyi tekikebereddwa.",
         "zero_detections": "Embeera y'obudde yokka. Tewali kyazuuliddwa mu kifaananyi.",
         "other_classes": "Embeera y'obudde yokka. Ekifaananyi kiraze ebirala ku kasooli.",
         "weak_sign": "Akabonero ku kifaananyi tekategeerekeka bulungi. Embeera y'obudde yokka.",
@@ -56,7 +58,7 @@ def _evidence_key(assessment: RiskAssessment) -> str:
     status = assessment.image_status
     score = assessment.strongest_faw_confidence
     met = assessment.visual_rule_met
-    if status not in ("no_image", "zero_detections", "detections_present"):
+    if status not in ("no_image", "unprocessed_image", "zero_detections", "detections_present"):
         raise ValueError("Unknown assessment image status")
     if score is not None:
         if type(score) not in (float, int) or not 0 <= score <= 1:

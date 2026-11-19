@@ -49,7 +49,7 @@ class RiskAssessment:
     contributing_factors: tuple[str, str]
     telemetry_hours: int
     matching_hours: int
-    image_status: Literal["no_image", "zero_detections", "detections_present"]
+    image_status: Literal["no_image", "unprocessed_image", "zero_detections", "detections_present"]
     strongest_faw_confidence: float | None
     limitation: str = LIMITATION
     visual_rule_met: bool | None = None  # Older assessments may omit the rule outcome.
@@ -89,14 +89,17 @@ def assess_risk(
     detections: Mapping[str, list[float]] | None = None,
     *,
     rules: RiskRules = RiskRules(),
+    image_unprocessed: bool = False,
 ) -> RiskAssessment:
     """Combine one complete telemetry window with optional grouped YOLO scores.
 
     Pass None for no submitted image and an empty mapping for a processed image
-    with zero boxes. Malformed or incomplete evidence raises ValueError.
+    with zero boxes. Set image_unprocessed when a submitted photo has no result.
     """
     if not isinstance(rules, RiskRules):
         raise ValueError("rules must be a RiskRules instance")
+    if type(image_unprocessed) is not bool or (image_unprocessed and detections is not None):
+        raise ValueError("An unprocessed image cannot have detection results")
     matches = _matching_hours(records, rules)
     climate_factor = (
         f"{matches}/72 hours met both cutoffs ({rules.min_temperature_c:g} °C and "
@@ -106,6 +109,9 @@ def assess_risk(
     best_label = None
     image_status = "no_image"
     visual_factor = "No image submitted. Visual evidence is unavailable."
+    if image_unprocessed:
+        image_status = "unprocessed_image"
+        visual_factor = "Photo submitted but unavailable for assessment. Using simulated climate only."
     if detections is not None:
         if not isinstance(detections, Mapping):
             raise ValueError("detections must map class labels to lists of confidence scores")
