@@ -27,7 +27,7 @@ class ForecastingTests(unittest.TestCase):
                 self.assertEqual(result.matching_hours, hours)
                 self.assertEqual(result.strongest_faw_confidence, score)
                 self.assertEqual(len(result.contributing_factors), 2)
-                self.assertIn("not a scientifically validated 48–72-hour forecast", result.limitation)
+                self.assertIn("not a scientifically validated 48–72-hour pest forecast", result.limitation)
 
     def test_missing_image_and_processed_empty(self):
         for detections, status in ((None, "no_image"), ({}, "zero_detections")):
@@ -67,7 +67,7 @@ class ForecastingTests(unittest.TestCase):
                           min_matching_hours=17, min_detection_confidence=0.4)
         self.assertEqual(assess_risk(rows, detections, rules=rules).risk_level, "High")
         for key, value in (("min_matching_hours", True), ("min_matching_hours", 73),
-                           ("min_detection_confidence", -0.1), ("min_temperature_c", 33),
+                           ("min_detection_confidence", -0.1), ("min_temperature_c", 61),
                            ("min_humidity_pct", float("nan"))):
             with self.subTest(key=key, value=value), self.assertRaises(ValueError):
                 RiskRules(**{key: value})
@@ -83,7 +83,7 @@ class ForecastingTests(unittest.TestCase):
                 assess_risk([rows[0], dict(rows[1], timestamp=stamp), *rows[2:]])
 
     def test_invalid_measurements(self):
-        for key, value in (("temperature_c", 33), ("temperature_c", "25"),
+        for key, value in (("temperature_c", 61), ("temperature_c", "25"),
                            ("relative_humidity_pct", float("nan")), ("rainfall_mm_per_hour", -1),
                            ("soil_moisture_pct", float("inf")), ("soil_moisture_pct", True)):
             rows = window()
