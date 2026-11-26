@@ -12,6 +12,11 @@ from PIL import Image
 from streamlit.testing.v1 import AppTest
 
 from forecasting_agent import LIMITATION
+from microclimate_sim import generate_telemetry
+from weather_archive import HistoricalWindow
+from weather_archive import ForecastWindow
+from datetime import datetime, timedelta
+from zoneinfo import ZoneInfo
 
 
 class DashboardTests(unittest.TestCase):
@@ -53,6 +58,39 @@ class DashboardTests(unittest.TestCase):
         self.assertTrue(any("unvalidated" in c.value for c in self.app.caption))
         self.assertFalse(self.app.sidebar.slider)
         self.assertIn("Simulated weather readings", [e.label for e in self.app.expander])
+
+    def test_historical_weather_requires_load_and_identifies_source(self):
+        self.app.run()
+        self.app.selectbox(key="climate_source").select("Historical regional weather").run()
+        self.assertFalse(self.app.exception)
+        self.assertFalse(any(m.label == "Illustrative scouting priority" for m in self.app.metric))
+        day = self.app.date_input(key="weather_date").value
+        window = HistoricalWindow(
+            generate_telemetry("normal"), 0.35, 32.75, 0.3163, 32.7656,
+            day - timedelta(days=2), day,
+        )
+        with patch("weather_archive.load_historical_window", return_value=window) as loader:
+            self.app.button(key="load_weather").click().run()
+        self.assertFalse(self.app.exception)
+        loader.assert_called_once_with(0.35, 32.75, day)
+        self.assertEqual(self.metric("Illustrative scouting priority"), "Low")
+        self.assertTrue(any("regional" in c.value.lower() for c in self.app.caption))
+        self.assertIn("Historical weather readings", [e.label for e in self.app.expander])
+
+    def test_future_weather_is_labelled_as_weather_outlook(self):
+        self.app.run()
+        self.app.selectbox(key="climate_source").select("Next 72 hours: regional weather outlook").run()
+        window = ForecastWindow(
+            generate_telemetry("normal"), 0.35, 32.75, 0.3163, 32.7656,
+            datetime(2026, 11, 26, 3, tzinfo=ZoneInfo("Africa/Kampala")),
+        )
+        with patch("weather_archive.load_weather_outlook", return_value=window) as loader:
+            self.app.button(key="load_weather").click().run()
+        self.assertFalse(self.app.exception)
+        loader.assert_called_once_with(0.35, 32.75)
+        self.assertEqual(self.metric("Illustrative scouting priority"), "Low")
+        self.assertTrue(any("pest alert is unvalidated" in c.value for c in self.app.caption))
+        self.assertIn("Weather outlook", [e.label for e in self.app.expander])
 
     def test_farmer_language_selection_shows_only_draft_luganda(self):
         self.app.run()
