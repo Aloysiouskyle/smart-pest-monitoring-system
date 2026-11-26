@@ -18,6 +18,35 @@ A final-year Computer Science project exploring offline-capable, multi-agent pes
 
 Farmer acceptance testing and field validation are planned work.
 
+## Regional weather evidence and outlook
+
+The dashboard's **Climate data** selector offers three inputs: the original repeatable
+simulation, a dated 72-hour historical regional weather window, and the next 72 hours
+of regional weather-model output. For the two regional modes, enter the farm's latitude
+and longitude (the defaults are example coordinates near Mukono) and click **Load**.
+The historical mode ends at least six days ago to allow reanalysis updates. The weather
+outlook has no historical-date picker. Both require an internet connection to load.
+The dashboard displays requested coordinates, the provider's grid coordinates, source,
+dates or retrieval time, and a dated temperature/humidity chart. Invalid hours, null
+values and unexpected units are rejected rather than silently fed to the agent.
+
+Source: [Open-Meteo Historical Weather API](https://open-meteo.com/en/docs/historical-weather-api)
+and [Open-Meteo Weather Forecast API](https://open-meteo.com/en/docs). Open-Meteo's
+regional model output is **not an on-farm sensor measurement**. The future option
+forecasts **weather**, not pest incidence. The existing temperature/humidity rule now
+accepts physically plausible external ranges, but its 25 °C, 72% RH and 18-hour
+cutoffs remain illustrative, not locally calibrated outbreak thresholds. Rainfall and
+topsoil moisture are shown and checked, but do not contribute to that rule.
+The displayed category is a **demonstration scouting priority**; confirm any suspected
+infestation by systematic field scouting. A genuine 48–72-hour pest forecast requires
+dated pest observations, baseline comparison and held-out field validation.
+
+For a supervisor demonstration, show the simulation first, then load the weather
+outlook for a farm location. Explain that this expands a photo-only workflow to
+field-level context while the early-warning claim remains under evaluation. The
+forecast should be refreshed when showing a new day: it is kept only in the active
+Streamlit session until you change the input or click Load again.
+
 ## WP 2.1 microclimate simulator
 
 `microclimate_sim.py` uses the Python standard library. From the repository root:
@@ -100,6 +129,7 @@ Run all automated tests with `python -m unittest discover -s tests -v`.
 Launch `python -m streamlit run app.py` from the repository root with the project environment.
 
 - **Farmer View** opens by default. It shows the simulated risk and one recommended-action message near the top. Select English or draft Luganda for the advisory. The Luganda translation awaits human review. A photo is optional, and missing weights or failed inference leave the simulated assessment and guidance available. Photo results use plain-language labels for possible findings. Expand **Marked photo and explanation heatmap** to see the boxes and request the heatmap. Expand **Simulated weather readings** to see the summary for the Normal maize field scenario with seed 42. The photo check uses the first available backend (PyTorch, then ONNX) and the original 0.10 detection confidence threshold.
+- **Climate data** can switch either view to historical regional weather or the next 72-hour regional weather outlook. With a regional source selected, click Load before the app shows a scouting priority. The optional photo still contributes to the demonstration rule. The default remains the synthetic scenario.
 - **Developer/Research View** provides backend, confidence threshold, Grad-CAM, scenario and seed controls. It shows the technical risk rules and evidence, all 72 simulated readings, per-box classes, confidence scores and coordinates, inference timings, the original photo advisory and both SMS previews with character counts. Grad-CAM uses the matching PyTorch checkpoint, including when ONNX supplies the boxes.
 
 The readings are simulated and the risk estimate is an unvalidated demonstration. Detection and explanation models are still stored separately per session. The app now reuses the latest successful prediction in that session while the photo contents, checkpoint and detection threshold match. Changing these inputs runs detection again, and failed predictions can be retried on the next interaction. Farmer View skips Grad-CAM until requested. Displayed inference timings describe the prediction that produced the boxes, including when the result is reused. No latency benchmark was run.

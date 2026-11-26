@@ -15,8 +15,9 @@ FAW_LABELS = frozenset({
 })
 MODEL_LABELS = FAW_LABELS | {"healthy-maize", "maize-streak-disease"}
 LIMITATION = (
-    "This is a simulated rule-based assessment, not a scientifically validated "
-    "48–72-hour forecast. YOLO confidence describes a detection in the submitted image."
+    "This is an illustrative rule-based assessment, not a scientifically validated "
+    "48–72-hour pest forecast. Weather alone cannot confirm infestation across a field. "
+    "YOLO confidence describes a detection in the submitted image."
 )
 
 
@@ -36,8 +37,8 @@ class RiskRules:
     min_detection_confidence: float = 0.50
 
     def __post_init__(self) -> None:
-        _number(self.min_temperature_c, "min_temperature_c", 19, 32)
-        _number(self.min_humidity_pct, "min_humidity_pct", 55, 95)
+        _number(self.min_temperature_c, "min_temperature_c", -50, 60)
+        _number(self.min_humidity_pct, "min_humidity_pct", 0, 100)
         _number(self.min_detection_confidence, "min_detection_confidence", 0, 1)
         if type(self.min_matching_hours) is not int or not 1 <= self.min_matching_hours <= 72:
             raise ValueError("min_matching_hours must be an integer from 1 to 72")
@@ -75,10 +76,10 @@ def _matching_hours(records: Sequence[TelemetryRecord], rules: RiskRules) -> int
         if previous is not None and instant - previous != timedelta(hours=1):
             raise ValueError(f"Record {index} must follow the previous record by one hour")
         previous = instant
-        temperature = _number(row.get("temperature_c"), "temperature_c", 19, 32)
-        humidity = _number(row.get("relative_humidity_pct"), "relative_humidity_pct", 55, 95)
-        _number(row.get("rainfall_mm_per_hour"), "rainfall_mm_per_hour", 0, 6)
-        _number(row.get("soil_moisture_pct"), "soil_moisture_pct", 34, 52)
+        temperature = _number(row.get("temperature_c"), "temperature_c", -50, 60)
+        humidity = _number(row.get("relative_humidity_pct"), "relative_humidity_pct", 0, 100)
+        _number(row.get("rainfall_mm_per_hour"), "rainfall_mm_per_hour", 0, 300)
+        _number(row.get("soil_moisture_pct"), "soil_moisture_pct", 0, 100)
         if temperature >= rules.min_temperature_c and humidity >= rules.min_humidity_pct:
             matches += 1
     return matches
