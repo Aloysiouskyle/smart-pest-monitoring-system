@@ -1,16 +1,20 @@
 from collections import defaultdict
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 from io import BytesIO
 from pathlib import Path
 from statistics import mean
 from typing import TYPE_CHECKING
+from zoneinfo import ZoneInfo
 
+import pandas as pd
 import streamlit as st
 from PIL import Image
 
 from advisory_agent import build_advisory
 from forecasting_agent import RiskRules, assess_risk
 from microclimate_sim import generate_telemetry
+from weather_archive import WeatherDataError, load_historical_window, load_weather_outlook
 
 
 ROOT = Path(__file__).resolve().parent
@@ -21,6 +25,7 @@ if TYPE_CHECKING:
 FARMER_VIEW = "Farmer View"
 RESEARCH_VIEW = "Developer/Research View"
 SCENARIOS = {"Normal maize field": "normal", "Higher-risk scenario": "higher_risk"}
+CLIMATE_SOURCES = ("Simulated demo", "Historical regional weather", "Next 72 hours: regional weather outlook")
 FARMER_LABELS = {
     "fall-armyworm-egg": "Possible Fall Armyworm eggs",
     "fall-armyworm-frass": "Possible Fall Armyworm droppings",
@@ -242,8 +247,8 @@ def render_research_photo(photo, photo_error, explain):
         st.write(photo_advisory(photo.detections))
 
 
-def render_weather(rows, scenario, research):
-    st.caption(f"{scenario} · 72 hours of simulated readings.")
+def render_weather(rows, source_label, research):
+    st.caption(f"{source_label} · 72 dated hourly readings.")
     if research:
         st.caption(f"{rows[0]['timestamp']} to {rows[-1]['timestamp']}")
     columns = st.columns(2)
@@ -251,11 +256,17 @@ def render_weather(rows, scenario, research):
     columns[1].metric("Average humidity", f"{mean(r['relative_humidity_pct'] for r in rows):.1f}%")
     columns[0].metric("Total rainfall", f"{sum(r['rainfall_mm_per_hour'] for r in rows):.1f} mm")
     columns[1].metric("Average soil moisture", f"{mean(r['soil_moisture_pct'] for r in rows):.1f}%")
+    st.caption("Temperature and relative humidity over the observation window (Uganda time)")
+    st.line_chart(pd.DataFrame({
+        "Time": pd.to_datetime([r["timestamp"] for r in rows]),
+        "Temperature (°C)": [r["temperature_c"] for r in rows],
+        "Humidity (%)": [r["relative_humidity_pct"] for r in rows],
+    }).set_index("Time"))
     if research:
         st.dataframe(rows)
 
 
-def render_risk(rows, photo, image_unprocessed, research, language):
+def render_risk(rows, photo, image_unprocessed, research, language, regional=False, future=False):
     try:
         assessment = assess_risk(
             rows, None if photo is None else photo.detections,
@@ -265,7 +276,7 @@ def render_risk(rows, photo, image_unprocessed, research, language):
         st.error(f"Assessment could not use the supplied evidence: {error}")
         return
 
-    st.metric("Simulated Fall Armyworm risk", assessment.risk_level)
+    st.metric("Illustrative scouting priority" if regional else "Simulated Fall Armyworm risk", assessment.risk_level)
     if research:
         for factor in assessment.contributing_factors:
             st.write(factor)
@@ -285,7 +296,13 @@ def render_risk(rows, photo, image_unprocessed, research, language):
         st.caption(assessment.limitation)
         st.subheader("Farmer SMS previews")
     else:
-        st.caption("Demonstration using simulated weather. The risk estimate is unvalidated and cannot forecast your field.")
+        st.caption(
+            "Demonstration using a regional weather outlook; the weather is forecast, but the pest alert is unvalidated."
+            if future else
+            "Demonstration using regional historical weather; not a pest forecast or proof of infestation in your field."
+            if regional else
+            "Demonstration using simulated weather. The risk estimate is unvalidated and cannot forecast your field."
+        )
         st.subheader("Recommended action")
 
     try:
@@ -307,6 +324,7 @@ st.set_page_config(page_title="Maize pest monitoring", page_icon="🌱", layout=
 st.title("Maize pest monitoring")
 view = st.selectbox("View", (FARMER_VIEW, RESEARCH_VIEW), key="view")
 research = view == RESEARCH_VIEW
+climate_source = st.selectbox("Climate data", CLIMATE_SOURCES, key="climate_source")
 language = "English"
 scenario, seed = "Normal maize field", 42
 options = available_checkpoints()
@@ -327,6 +345,52 @@ if research:
 else:
     language = st.selectbox("Advisory language", ("English", "Draft Luganda"), key="language")
 
+rows = None
+source_label = ""
+regional = climate_source != "Simulated demo"
+future = climate_source == "Next 72 hours: regional weather outlook"
+if regional:
+    with st.expander("Regional weather location and dates", expanded=True):
+        st.caption("Example coordinates near Mukono; enter your farm location for a relevant regional estimate.")
+        latitude = st.number_input("Latitude", min_value=-90.0, max_value=90.0, value=0.35, format="%.4f", key="weather_lat")
+        longitude = st.number_input("Longitude", min_value=-180.0, max_value=180.0, value=32.75, format="%.4f", key="weather_lon")
+        local_today = datetime.now(ZoneInfo("Africa/Kampala")).date()
+        if not future:
+            last_date = st.date_input(
+                "Last observation day", value=local_today - timedelta(days=7),
+                min_value=datetime(2017, 1, 3).date(), max_value=local_today - timedelta(days=6),
+                key="weather_date",
+            )
+        request_key = (climate_source, latitude, longitude, None if future else last_date)
+        if st.button("Load 72 hours of weather outlook" if future else "Load 72 hours of historical weather", key="load_weather"):
+            try:
+                with st.spinner("Loading dated regional weather..."):
+                    weather = (load_weather_outlook(latitude, longitude) if future else
+                               load_historical_window(latitude, longitude, last_date))
+                    st.session_state["weather_window"] = (request_key, weather)
+            except WeatherDataError as error:
+                st.session_state.pop("weather_window", None)
+                st.error(str(error))
+        cached = st.session_state.get("weather_window")
+        if cached and cached[0] == request_key:
+            weather = cached[1]
+            rows = weather.records
+            source_label = (f"{weather.source}: retrieved {weather.retrieved_at:%Y-%m-%d %H:%M EAT}"
+                            if future else f"{weather.source}: {weather.first_date} to {weather.last_date}")
+            st.caption(source_label)
+            st.caption(
+                f"Requested ({weather.requested_latitude:.4f}, {weather.requested_longitude:.4f}); "
+                f"weather grid ({weather.grid_latitude:.4f}, {weather.grid_longitude:.4f}). "
+                "Regional model estimates, not a sensor at this farm. "
+                + ("Future weather conditions, not a validated pest forecast." if future else
+                   "Historical regional estimates, not future weather.")
+            )
+        else:
+            st.info("Load regional weather to see the demonstration scouting priority.")
+else:
+    rows = generate_telemetry(SCENARIOS[scenario], seed=seed)
+    source_label = f"{scenario} (synthetic seed {seed})"
+
 risk_panel = st.container(border=True)
 st.subheader("Maize photo check")
 upload = st.file_uploader("Upload a maize photo (optional)", type=("jpg", "jpeg", "png", "webp"), key="photo")
@@ -343,16 +407,20 @@ if upload is not None:
         except Exception as error:
             photo_error = f"Photo processing failed: {error}"
 
-rows = generate_telemetry(SCENARIOS[scenario], seed=seed)
 with risk_panel:
-    render_risk(rows, photo, upload is not None and photo is None, research, language)
+    if rows is None:
+        st.info("No climate window loaded. Select a location and load regional weather.")
+    else:
+        render_risk(rows, photo, upload is not None and photo is None, research, language, regional, future)
 if research:
     if checkpoint is not None:
         st.caption(f"Checkpoint: {checkpoint.relative_to(ROOT)}")
     render_research_photo(photo, photo_error, explain)
-    st.header("Simulated microclimate")
-    render_weather(rows, scenario, research)
+    st.header("Regional weather outlook" if future else "Microclimate observations" if regional else "Simulated microclimate")
+    if rows is not None:
+        render_weather(rows, source_label, research)
 else:
     render_farmer_photo(photo, photo_error)
-    with st.expander("Simulated weather readings"):
-        render_weather(rows, scenario, research)
+    with st.expander("Weather outlook" if future else "Historical weather readings" if regional else "Simulated weather readings"):
+        if rows is not None:
+            render_weather(rows, source_label, research)
